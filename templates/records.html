@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Records & Reports{% endblock %}
+{% block page_title %}Attendance Logs & Auditing{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header" style="flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; gap: 0.75rem; flex: 1; max-width: 650px;">
+            <select id="filterSession" onchange="loadRecords()" class="form-select">
+                <option value="">All Sessions...</option>
+            </select>
+            <select id="filterDept" onchange="loadRecords()" class="form-select">
+                <option value="">All Departments</option>
+                <option value="COMPUTER SCIENCE">Computer Science</option>
+                <option value="ARTIFICIAL INTELLIGENCE">AI & ML</option>
+                <option value="INFORMATION TECHNOLOGY">Information Tech</option>
+                <option value="ELECTRONICS">Electronics</option>
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem;">
+            <button onclick="exportCSV()" class="btn btn-outline btn-sm">
+                <i class="fa-solid fa-file-csv"></i>
+                <span>Export CSV</span>
+            </button>
+            <button onclick="openOverrideModal()" class="btn btn-primary btn-sm">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <span>Manual Override</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Roll Number</th>
+                    <th>Student Name</th>
+                    <th>Department</th>
+                    <th>Session Code</th>
+                    <th>Timestamp</th>
+                    <th>Method</th>
+                    <th>Confidence</th>
+                    <th>Remarks</th>
+                </tr>
+            </thead>
+            <tbody id="recordsTableBody">
+                <tr>
+                    <td colspan="8" style="text-align: center; color: var(--text-subtle); padding: 2rem;">Loading attendance logs...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal: Manual Attendance Override -->
+<div id="overrideModal" class="modal-backdrop">
+    <div class="modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+            <h3 style="font-size: 1.15rem; font-weight: 600;">Manual Attendance Override</h3>
+            <button onclick="closeOverrideModal()" style="background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer;">&times;</button>
+        </div>
+
+        <form id="overrideForm" onsubmit="handleManualOverride(event)">
+            <div class="form-group">
+                <label class="form-label">Session *</label>
+                <select id="overrideSessionId" class="form-select" required></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Student *</label>
+                <select id="overrideStudentId" class="form-select" required></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Action *</label>
+                <select id="overrideAction" class="form-select" required>
+                    <option value="MARK_PRESENT">Mark Present (Manual)</option>
+                    <option value="REMOVE">Remove Attendance Record</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Reason / Remarks *</label>
+                <input type="text" id="overrideRemarks" class="form-input" placeholder="e.g. Student present but camera occluded" required>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+                <button type="button" onclick="closeOverrideModal()" class="btn btn-outline btn-sm">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm">Apply Override</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let sessionList = [];
+    let studentList = [];
+
+    async function initPage() {
+        await loadSessionsAndStudents();
+        await loadRecords();
+    }
+
+    async function loadSessionsAndStudents() {
+        try {
+            const [resSess, resStud] = await Promise.all([
+                fetch('/api/sessions'),
+                fetch('/api/students')
+            ]);
+            const dataSess = await resSess.json();
+            const dataStud = await resStud.json();
+
+            sessionList = dataSess.sessions || [];
+            studentList = dataStud.students || [];
+
+            // Populate filters
+            const selFilter = document.getElementById('filterSession');
+            const selOverride = document.getElementById('overrideSessionId');
+            selFilter.innerHTML = '<option value="">All Sessions...</option>';
+            selOverride.innerHTML = '';
+
+            sessionList.forEach(s => {
+                const opt = `<option value="${s.session_id}">${s.course_code} - ${s.course_name} (${s.session_date})</option>`;
+                selFilter.innerHTML += opt;
+                selOverride.innerHTML += opt;
+            });
+
+            // Populate student override select
+            const selStud = document.getElementById('overrideStudentId');
+            selStud.innerHTML = '';
+            studentList.forEach(st => {
+                selStud.innerHTML += `<option value="${st.student_id}">${st.roll_number} - ${st.first_name} ${st.last_name}</option>`;
+            });
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function loadRecords() {
+        const sessionId = document.getElementById('filterSession').value;
+        const dept = document.getElementById('filterDept').value;
+        const tbody = document.getElementById('recordsTableBody');
+
+        try {
+            let url = sessionId ? `/api/attendance/session/${sessionId}` : null;
+
+            if (sessionId) {
+                const res = await fetch(url);
+                const data = await res.json();
+                let records = data.attendance || [];
+                if (dept) {
+                    records = records.filter(r => r.department === dept);
+                }
+                renderRecords(records, data.session ? data.session.session_code : '--');
+            } else {
+                // If all sessions selected, show message or fetch through report
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">Please select a session above to inspect detailed attendance logs, or click "Export CSV" to download all records.</td></tr>`;
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function renderRecords(records, sessionCode) {
+        const tbody = document.getElementById('recordsTableBody');
+        if (records.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-subtle); padding: 2rem;">No attendance records found for this selection.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = records.map(r => `
+            <tr>
+                <td class="font-mono" style="font-weight: 600;">${r.roll_number}</td>
+                <td>${r.name}</td>
+                <td>${r.department}</td>
+                <td>${sessionCode}</td>
+                <td class="text-subtle">${r.marked_at}</td>
+                <td><span class="badge ${r.method === 'AUTO_FACE' ? 'badge-success' : 'badge-warning'}">${r.method}</span></td>
+                <td>${r.confidence_score ? Math.round(r.confidence_score * 100) + '%' : '--'}</td>
+                <td class="text-subtle">${r.remarks || '--'}</td>
+            </tr>
+        `).join('');
+    }
+
+    function exportCSV() {
+        const sessionId = document.getElementById('filterSession').value;
+        const dept = document.getElementById('filterDept').value;
+        let url = `/api/reports/export-csv?`;
+        if (sessionId) url += `session_id=${sessionId}&`;
+        if (dept) url += `department=${dept}&`;
+        window.location.href = url;
+    }
+
+    function openOverrideModal() {
+        document.getElementById('overrideModal').classList.add('show');
+    }
+    function closeOverrideModal() {
+        document.getElementById('overrideModal').classList.remove('show');
+    }
+
+    async function handleManualOverride(e) {
+        e.preventDefault();
+        const payload = {
+            session_id: document.getElementById('overrideSessionId').value,
+            student_id: document.getElementById('overrideStudentId').value,
+            action: document.getElementById('overrideAction').value,
+            remarks: document.getElementById('overrideRemarks').value.trim(),
+        };
+
+        try {
+            const res = await fetch('/api/attendance/override', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                closeOverrideModal();
+                loadRecords();
+            } else {
+                alert(data.error);
+            }
+        } catch (e) {
+            alert('Override error: ' + e.message);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', initPage);
+</script>
+{% endblock %}
+

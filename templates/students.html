@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Students Directory{% endblock %}
+{% block page_title %}Student Records & Biometrics{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header" style="flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; gap: 0.75rem; flex: 1; max-width: 600px;">
+            <input type="text" id="searchStudentInput" oninput="filterStudentsTable()" class="form-input" placeholder="Search by name or roll number...">
+            <select id="filterDepartment" onchange="filterStudentsTable()" class="form-select" style="max-width: 200px;">
+                <option value="">All Departments</option>
+                <option value="COMPUTER SCIENCE">Computer Science</option>
+                <option value="ARTIFICIAL INTELLIGENCE">AI & ML</option>
+                <option value="INFORMATION TECHNOLOGY">Information Tech</option>
+                <option value="ELECTRONICS">Electronics</option>
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem;">
+            <a href="{{ url_for('register_view') }}" class="btn btn-primary btn-sm">
+                <i class="fa-solid fa-user-plus"></i>
+                <span>Register New Student</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Roll Number</th>
+                    <th>Student Name</th>
+                    <th>Department</th>
+                    <th>Email</th>
+                    <th>Biometric Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="studentsTableBody">
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-subtle); padding: 2rem;">Loading student directory...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let allStudents = [];
+
+    async function loadStudents() {
+        try {
+            const res = await fetch('/api/students');
+            const data = await res.json();
+            if (data.success) {
+                allStudents = data.students || [];
+                renderStudents(allStudents);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function renderStudents(students) {
+        const tbody = document.getElementById('studentsTableBody');
+        if (students.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-subtle); padding: 2rem;">No students found.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = students.map(s => {
+            const isEnrolled = s.is_enrolled;
+            const badgeClass = isEnrolled ? 'badge-success' : 'badge-warning';
+            const badgeText = isEnrolled ? `${s.enrolled_samples} Samples (Active)` : 'Biometrics Missing';
+
+            return `
+                <tr>
+                    <td class="font-mono" style="font-weight: 600;">${s.roll_number}</td>
+                    <td style="font-weight: 500;">${s.first_name} ${s.last_name}</td>
+                    <td>${s.department}</td>
+                    <td class="text-subtle">${s.email || '--'}</td>
+                    <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+                    <td>
+                        <div style="display: flex; gap: 0.4rem;">
+                            <a href="/register" class="btn btn-outline btn-sm" title="Enroll Biometrics">
+                                <i class="fa-solid fa-camera"></i>
+                            </a>
+                            <button onclick="deleteStudent(${s.student_id}, '${s.roll_number}')" class="btn btn-outline btn-sm" style="color: var(--danger);" title="Delete Student & Biometrics">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function filterStudentsTable() {
+        const query = document.getElementById('searchStudentInput').value.toLowerCase().trim();
+        const dept = document.getElementById('filterDepartment').value.toUpperCase().trim();
+
+        const filtered = allStudents.filter(s => {
+            const matchQuery = s.roll_number.toLowerCase().includes(query) ||
+                `${s.first_name} ${s.last_name}`.toLowerCase().includes(query);
+            const matchDept = !dept || s.department.toUpperCase() === dept;
+            return matchQuery && matchDept;
+        });
+
+        renderStudents(filtered);
+    }
+
+    async function deleteStudent(studentId, roll) {
+        if (!confirm(`Are you sure you want to permanently delete student '${roll}' and their face biometric embeddings?`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/students/${studentId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+                loadStudents();
+            } else {
+                alert(data.error);
+            }
+        } catch (e) {
+            alert('Failed to delete student: ' + e.message);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadStudents);
+</script>
+{% endblock %}
+

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FaceAttend AI{% endblock %} - Smart Attendance System</title>
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Custom Theme Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-camera-viewfinder"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>FaceAttend AI</h1>
+                    <span>Biometric System</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-label">Core Operations</div>
+                <a href="{{ url_for('dashboard_view') }}" class="nav-link {% if request.path == '/dashboard' or request.path == '/' %}active{% endif %}">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ url_for('live_attendance_view') }}" class="nav-link {% if request.path == '/live' %}active{% endif %}">
+                    <i class="fa-solid fa-video"></i>
+                    <span>Live Attendance</span>
+                </a>
+                <a href="{{ url_for('students_view') }}" class="nav-link {% if request.path == '/students' %}active{% endif %}">
+                    <i class="fa-solid fa-users"></i>
+                    <span>Students</span>
+                </a>
+                <a href="{{ url_for('register_view') }}" class="nav-link {% if request.path == '/register' %}active{% endif %}">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>Enroll Student</span>
+                </a>
+
+                <div class="nav-label" style="margin-top: 1rem;">Reports & System</div>
+                <a href="{{ url_for('records_view') }}" class="nav-link {% if request.path == '/records' %}active{% endif %}">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    <span>Attendance Records</span>
+                </a>
+                <a href="{{ url_for('settings_view') }}" class="nav-link {% if request.path == '/settings' %}active{% endif %}">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Configuration</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="system-status">
+                    <div class="status-dot"></div>
+                    <span>CV Engine Online</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Wrapper -->
+        <div class="main-wrapper">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="topbar-title">
+                    {% block page_title %}Dashboard{% endblock %}
+                </div>
+                <div class="topbar-actions">
+                    <div id="topbarSessionBadge" class="session-indicator inactive">
+                        <i class="fa-solid fa-circle-dot"></i>
+                        <span id="topbarSessionText">No Active Session</span>
+                    </div>
+
+                    <a href="{{ url_for('live_attendance_view') }}" class="btn btn-primary btn-sm">
+                        <i class="fa-solid fa-camera"></i>
+                        <span>Start Camera</span>
+                    </a>
+                </div>
+            </header>
+
+            <!-- Page Body Content -->
+            <main class="content-body">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Floating Toast Notifications Container -->
+    <div id="toastContainer" style="position: fixed; top: 1.5rem; right: 1.5rem; z-index: 100;"></div>
+
+    <!-- Global App State Scripts -->
+    <script>
+        // Check Active Session on Topbar
+        async function checkActiveSession() {
+            try {
+                const res = await fetch('/api/sessions/active');
+                const data = await res.json();
+                const badge = document.getElementById('topbarSessionBadge');
+                const text = document.getElementById('topbarSessionText');
+
+                if (data.active_session) {
+                    badge.classList.remove('inactive');
+                    text.textContent = `Active: ${data.active_session.course_code}`;
+                } else {
+                    badge.classList.add('inactive');
+                    text.textContent = 'No Active Session';
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        document.addEventListener('DOMContentLoaded', checkActiveSession);
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+

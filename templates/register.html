@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}Enroll Student{% endblock %}
+{% block page_title %}Student Registration & Biometric Enrollment{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 1fr 1.25fr; gap: 1.5rem; align-items: start;">
+    <!-- Step 1: Student Information Form -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fa-solid fa-id-card" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                1. Student Details
+            </div>
+            <span id="enrollStudentIdBadge" class="badge badge-info" style="display: none;">Student ID: --</span>
+        </div>
+
+        <form id="studentRegisterForm" onsubmit="handleRegisterStudent(event)">
+            <div class="form-group">
+                <label class="form-label">Roll / Registration Number *</label>
+                <input type="text" id="regRollNumber" class="form-input" placeholder="e.g. CS-2024-042" required>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">First Name *</label>
+                    <input type="text" id="regFirstName" class="form-input" placeholder="e.g. Alan" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Last Name *</label>
+                    <input type="text" id="regLastName" class="form-input" placeholder="e.g. Turing" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Department *</label>
+                <select id="regDepartment" class="form-select" required>
+                    <option value="">Select Department...</option>
+                    <option value="COMPUTER SCIENCE">Computer Science & Engineering</option>
+                    <option value="ARTIFICIAL INTELLIGENCE">Artificial Intelligence & ML</option>
+                    <option value="INFORMATION TECHNOLOGY">Information Technology</option>
+                    <option value="ELECTRONICS">Electronics & Communication</option>
+                    <option value="ELECTRICAL">Electrical Engineering</option>
+                    <option value="MECHANICAL">Mechanical Engineering</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Email Address (Optional)</label>
+                <input type="email" id="regEmail" class="form-input" placeholder="e.g. alan@university.edu">
+            </div>
+
+            <button type="submit" id="btnSubmitStudent" class="btn btn-primary" style="width: 100%;">
+                <i class="fa-solid fa-arrow-right"></i>
+                <span>Save & Activate Camera</span>
+            </button>
+        </form>
+    </div>
+
+    <!-- Step 2: Live Biometric Face Capture -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fa-solid fa-camera-viewfinder" style="color: var(--success); margin-right: 0.5rem;"></i>
+                2. Biometric Face Capture (5 Samples)
+            </div>
+            <div id="sampleCounterBadge" class="badge badge-warning">0 / 5 Samples</div>
+        </div>
+
+        <!-- 5 Sample Visual Progress Dots -->
+        <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; padding: 0.5rem 1rem; background: rgba(15, 23, 42, 0.5); border-radius: 8px;">
+            <div class="sample-dot" id="dot-0">1. Frontal</div>
+            <div class="sample-dot" id="dot-1">2. Slight Left</div>
+            <div class="sample-dot" id="dot-2">3. Slight Right</div>
+            <div class="sample-dot" id="dot-3">4. Expression</div>
+            <div class="sample-dot" id="dot-4">5. Final</div>
+        </div>
+
+        <!-- Video Viewport -->
+        <div class="video-viewport" style="height: 380px; margin: 0 auto; position: relative;">
+            <video id="enrollVideo" class="video-element" autoplay playsinline muted></video>
+            <canvas id="enrollCanvas" class="canvas-overlay"></canvas>
+        </div>
+
+        <!-- Real-Time Quality Feedback Banner -->
+        <div id="qualityBanner" style="margin-top: 1rem; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; background: rgba(30, 41, 59, 0.8); border-left: 4px solid var(--primary); display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-info-circle"></i>
+            <span id="qualityText">Register student details first to activate camera enrollment.</span>
+        </div>
+
+        <!-- Enrollment Controls -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+            <div style="display: flex; gap: 0.5rem;">
+                <button id="btnStartEnrollCam" onclick="startEnrollmentCamera()" class="btn btn-outline btn-sm" disabled>
+                    <i class="fa-solid fa-video"></i>
+                    <span>Start Camera</span>
+                </button>
+                <button id="btnAutoCapture" onclick="toggleAutoCapture()" class="btn btn-success btn-sm" disabled>
+                    <i class="fa-solid fa-burst"></i>
+                    <span id="btnAutoCaptureText">Start Face Capture</span>
+                </button>
+            </div>
+
+            <button id="btnResetEnroll" onclick="resetEnrollmentSession()" class="btn btn-outline btn-sm" style="display: none;">
+                <i class="fa-solid fa-arrow-rotate-left"></i>
+                <span>Reset</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.sample-dot {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-subtle);
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+}
+.sample-dot.active {
+    border-color: var(--warning);
+    color: var(--warning);
+    background: rgba(245, 158, 11, 0.1);
+}
+.sample-dot.completed {
+    border-color: var(--success);
+    color: var(--success);
+    background: rgba(16, 185, 129, 0.15);
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/camera.js') }}"></script>
+<script>
+    let activeStudentId = null;
+    let enrollCam = null;
+    let captureInterval = null;
+    let isCapturing = false;
+
+    async function handleRegisterStudent(e) {
+        e.preventDefault();
+        const payload = {
+            roll_number: document.getElementById('regRollNumber').value.trim(),
+            first_name: document.getElementById('regFirstName').value.trim(),
+            last_name: document.getElementById('regLastName').value.trim(),
+            department: document.getElementById('regDepartment').value,
+            email: document.getElementById('regEmail').value.trim() || null,
+        };
+
+        try {
+            const res = await fetch('/api/students', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                activeStudentId = data.student_id;
+                document.getElementById('enrollStudentIdBadge').textContent = `Student ID: ${activeStudentId}`;
+                document.getElementById('enrollStudentIdBadge').style.display = 'inline-flex';
+
+                // Lock form fields
+                document.getElementById('regRollNumber').disabled = true;
+                document.getElementById('regFirstName').disabled = true;
+                document.getElementById('regLastName').disabled = true;
+                document.getElementById('regDepartment').disabled = true;
+                document.getElementById('regEmail').disabled = true;
+                document.getElementById('btnSubmitStudent').disabled = true;
+
+                // Enable Camera
+                document.getElementById('btnStartEnrollCam').disabled = false;
+                startEnrollmentCamera();
+            } else {
+                alert(data.error);
+            }
+        } catch (e) {
+            alert('Registration error: ' + e.message);
+        }
+    }
+
+    async function startEnrollmentCamera() {
+        if (!enrollCam) {
+            enrollCam = new CameraStreamer('enrollVideo', { width: 640, height: 480 });
+        }
+        try {
+            await enrollCam.start();
+            document.getElementById('btnStartEnrollCam').disabled = true;
+            document.getElementById('btnAutoCapture').disabled = false;
+            document.getElementById('qualityText').textContent = 'Camera online. Click "Start Face Capture" to begin.';
+            document.getElementById('btnResetEnroll').style.display = 'inline-flex';
+        } catch (e) {
+            alert('Camera failed: ' + e.message);
+        }
+    }
+
+    function toggleAutoCapture() {
+        if (isCapturing) {
+            stopAutoCapture();
+        } else {
+            startAutoCapture();
+        }
+    }
+
+    function startAutoCapture() {
+        isCapturing = true;
+        document.getElementById('btnAutoCaptureText').textContent = 'Pause Capture';
+        document.getElementById('btnAutoCapture').classList.replace('btn-success', 'btn-warning');
+
+        captureInterval = setInterval(sendEnrollmentFrame, 600);
+    }
+
+    function stopAutoCapture() {
+        isCapturing = false;
+        clearInterval(captureInterval);
+        document.getElementById('btnAutoCaptureText').textContent = 'Resume Capture';
+        document.getElementById('btnAutoCapture').classList.replace('btn-warning', 'btn-success');
+    }
+
+    async function sendEnrollmentFrame() {
+        if (!enrollCam || !activeStudentId) return;
+
+        const base64 = enrollCam.captureFrameBase64(0.85);
+        if (!base64) return;
+
+        try {
+            const res = await fetch(`/api/students/${activeStudentId}/enroll-frame`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: base64 })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                updateEnrollmentUI(data);
+            }
+        } catch (e) {
+            console.error('Enroll frame error:', e);
+        }
+    }
+
+    function updateEnrollmentUI(data) {
+        const text = document.getElementById('qualityText');
+        const badge = document.getElementById('sampleCounterBadge');
+        const banner = document.getElementById('qualityBanner');
+
+        badge.textContent = `${data.samples_collected} / ${data.samples_required} Samples`;
+        text.textContent = data.message;
+
+        if (data.status === 'ACCEPTED' || data.status === 'COMPLETED') {
+            banner.style.borderLeftColor = 'var(--success)';
+        } else {
+            banner.style.borderLeftColor = 'var(--warning)';
+        }
+
+        // Update progress dots
+        for (let i = 0; i < 5; i++) {
+            const dot = document.getElementById(`dot-${i}`);
+            if (i < data.samples_collected) {
+                dot.className = 'sample-dot completed';
+            } else if (i === data.samples_collected) {
+                dot.className = 'sample-dot active';
+            } else {
+                dot.className = 'sample-dot';
+            }
+        }
+
+        if (data.is_complete) {
+            stopAutoCapture();
+            document.getElementById('btnAutoCapture').disabled = true;
+            badge.className = 'badge badge-success';
+            banner.style.borderLeftColor = 'var(--success)';
+            text.innerHTML = `<strong>Enrollment Completed!</strong> All 5 face samples stored and synced with vector matcher cache.`;
+            alert('Student face successfully enrolled!');
+        }
+    }
+
+    async function resetEnrollmentSession() {
+        if (!activeStudentId) return;
+        stopAutoCapture();
+        await fetch(`/api/students/${activeStudentId}/reset-enrollment`, { method: 'POST' });
+        document.getElementById('sampleCounterBadge').textContent = '0 / 5 Samples';
+        document.getElementById('qualityText').textContent = 'Session reset. Ready to capture.';
+        for (let i = 0; i < 5; i++) {
+            document.getElementById(`dot-${i}`).className = 'sample-dot';
+        }
+        document.getElementById('btnAutoCapture').disabled = false;
+        document.getElementById('btnAutoCaptureText').textContent = 'Start Face Capture';
+    }
+
+    window.addEventListener('beforeunload', () => {
+        if (enrollCam) enrollCam.stop();
+        if (captureInterval) clearInterval(captureInterval);
+    });
+</script>
+{% endblock %}
+

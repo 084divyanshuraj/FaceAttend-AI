@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Live Attendance{% endblock %}
+{% block page_title %}Real-Time Biometric Attendance{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 1.35fr 1fr; gap: 1.5rem; align-items: start;">
+    <!-- Left Column: Video Viewport & Overlays -->
+    <div>
+        <div class="card" style="padding: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+                    <div class="status-dot" style="background-color: var(--danger); box-shadow: 0 0 8px var(--danger);"></div>
+                    <span>Camera Feed</span>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">
+                    Model: YuNet (Detection) + SFace (128-D)
+                </div>
+            </div>
+
+            <!-- Viewport Container with Canvas Overlay -->
+            <div class="video-viewport" style="margin: 0 auto;">
+                <video id="liveVideo" class="video-element" autoplay playsinline muted></video>
+                <canvas id="overlayCanvas" class="canvas-overlay"></canvas>
+            </div>
+
+            <!-- Camera Controls -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="btnStartCam" onclick="startCamera()" class="btn btn-primary btn-sm">
+                        <i class="fa-solid fa-play"></i>
+                        <span>Start Camera</span>
+                    </button>
+                    <button id="btnStopCam" onclick="stopCamera()" class="btn btn-danger btn-sm" style="display: none;">
+                        <i class="fa-solid fa-stop"></i>
+                        <span>Stop Camera</span>
+                    </button>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">
+                    <i class="fa-solid fa-shield-halved" style="color: var(--success);"></i>
+                    <span>Anti-Flicker Consensus (3/5)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Active Session & Real-Time Attendance Stream -->
+    <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+        <!-- Session Card -->
+        <div class="card">
+            <div class="card-header" style="margin-bottom: 0.75rem;">
+                <div class="card-title" style="font-size: 0.95rem;">
+                    <i class="fa-solid fa-chalkboard" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                    Active Session Status
+                </div>
+                <span id="sessionStatusPill" class="badge badge-warning">Checking...</span>
+            </div>
+
+            <div id="sessionMeta" style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.6;">
+                Loading session details...
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-top: 1rem;">
+                <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 8px; text-align: center;">
+                    <div id="statPresent" style="font-size: 1.4rem; font-weight: 700; color: var(--success);">0</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">Present</div>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 8px; text-align: center;">
+                    <div id="statTotal" style="font-size: 1.4rem; font-weight: 700; color: var(--text-main);">0</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">Enrolled</div>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 8px; text-align: center;">
+                    <div id="statPercent" style="font-size: 1.4rem; font-weight: 700; color: var(--warning);">0%</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">Rate</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Attendance Feed Stream Table -->
+        <div class="card" style="flex: 1;">
+            <div class="card-header" style="margin-bottom: 0.75rem;">
+                <div class="card-title" style="font-size: 0.95rem;">
+                    <i class="fa-solid fa-bell" style="color: var(--success); margin-right: 0.5rem;"></i>
+                    Real-Time Attendance Feed
+                </div>
+                <span style="font-size: 0.75rem; color: var(--text-subtle);">Auto-updates</span>
+            </div>
+
+            <div class="table-container" style="max-height: 320px; overflow-y: auto;">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Roll</th>
+                            <th>Student</th>
+                            <th>Dept</th>
+                            <th>Status</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="liveFeedBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: var(--text-subtle); padding: 1.5rem;">
+                                Waiting for camera stream...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/camera.js') }}"></script>
+<script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
+<script>
+    let liveManager = null;
+    let activeSession = null;
+
+    async function initPage() {
+        try {
+            const res = await fetch('/api/sessions/active');
+            const data = await res.json();
+            activeSession = data.active_session;
+
+            const metaContainer = document.getElementById('sessionMeta');
+            const pill = document.getElementById('sessionStatusPill');
+
+            if (activeSession) {
+                pill.className = 'badge badge-success';
+                pill.textContent = 'RECORDING';
+                metaContainer.innerHTML = `
+                    <div><strong>${activeSession.course_name}</strong> (${activeSession.course_code})</div>
+                    <div>Instructor: ${activeSession.instructor} | Date: ${activeSession.session_date}</div>
+                `;
+            } else {
+                pill.className = 'badge badge-warning';
+                pill.textContent = 'STANDBY';
+                metaContainer.innerHTML = `
+                    <div style="color: var(--warning);">No active session found.</div>
+                    <div style="font-size: 0.75rem;">Recognitions will be visual only. Go to Dashboard to start a session.</div>
+                `;
+            }
+
+            // Auto-start camera
+            startCamera();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function startCamera() {
+        if (!liveManager) {
+            liveManager = new LiveAttendanceManager({
+                videoElementId: 'liveVideo',
+                canvasElementId: 'overlayCanvas',
+                feedTableBodyId: 'liveFeedBody',
+                sessionId: activeSession ? activeSession.session_id : null,
+                fps: 12
+            });
+        }
+
+        const ok = await liveManager.init();
+        if (ok) {
+            document.getElementById('btnStartCam').style.display = 'none';
+            document.getElementById('btnStopCam').style.display = 'inline-flex';
+        }
+    }
+
+    function stopCamera() {
+        if (liveManager) {
+            liveManager.stop();
+        }
+        document.getElementById('btnStartCam').style.display = 'inline-flex';
+        document.getElementById('btnStopCam').style.display = 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', initPage);
+    window.addEventListener('beforeunload', () => {
+        if (liveManager) liveManager.stop();
+    });
+</script>
+{% endblock %}
+

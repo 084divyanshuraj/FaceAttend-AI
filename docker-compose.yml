@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  faceattend-ai:
+    build: .
+    container_name: faceattend_ai_app
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./database:/app/database
+      - ./models:/app/models
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+

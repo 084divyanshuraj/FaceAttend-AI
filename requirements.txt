@@ -1,0 +1,7 @@
+# FaceAttend AI - Dependencies
+opencv-python>=4.10.0
+numpy>=1.26.0
+Flask>=3.0.0
+Flask-Cors>=4.0.0
+requests>=2.31.0
+
