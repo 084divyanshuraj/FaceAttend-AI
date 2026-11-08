@@ -21,6 +21,10 @@ DATABASE_DIR.mkdir(parents=True, exist_ok=True)
 # Model Filepaths
 YUNET_MODEL_PATH = MODELS_DIR / "face_detection_yunet_2023mar.onnx"
 SFACE_MODEL_PATH = MODELS_DIR / "face_recognition_sface_2021dec.onnx"
+CUSTOM_MODEL_PATH = MODELS_DIR / "custom_face_recognizer.onnx"
+
+# Active Model Selection: "SFACE" (default) or "CUSTOM" (Kaggle fine-tuned)
+ACTIVE_RECOGNITION_MODEL = "CUSTOM" if CUSTOM_MODEL_PATH.exists() else "SFACE"
 
 # Compute Backend Configuration
 # Supports CPU for local development/deployment, and CUDA for Kaggle GPU environments.

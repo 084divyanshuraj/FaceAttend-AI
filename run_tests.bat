@@ -18,11 +18,12 @@ test_scripts = [
     'tests/test_attendance_engine.py',
     'tests/test_api_endpoints.py',
     'tests/test_views.py',
-    'tests/test_audit_and_reports.py'
+    'tests/test_audit_and_reports.py',
+    'tests/test_custom_model_integration.py'
 ]
 
 print('=' * 65)
-print('Running all 7 verification test suites...')
+print('Running all 8 verification test suites...')
 print('=' * 65)
 
 all_passed = True

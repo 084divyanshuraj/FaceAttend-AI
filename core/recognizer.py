@@ -16,7 +16,9 @@ from core.detector import FaceDetection
 
 
 class SFaceRecognizer:
-    """SFace Feature Extractor and Aligner wrapping cv2.FaceRecognizerSF."""
+    """SFace / Custom ArcFace Feature Extractor and Aligner.
+    Supports both pretrained SFace and custom Kaggle fine-tuned ONNX models.
+    """
 
     def __init__(
         self,
@@ -24,10 +26,18 @@ class SFaceRecognizer:
         cosine_threshold: float = config.RECOGNITION_CONFIG["cosine_similarity_threshold"],
         backend: str = config.COMPUTE_BACKEND,
     ):
-        self.model_path = Path(model_path or config.SFACE_MODEL_PATH)
+        # Determine model path (Custom Fine-tuned or SFace)
+        if model_path:
+            chosen_path = Path(model_path)
+        elif config.ACTIVE_RECOGNITION_MODEL == "CUSTOM" and config.CUSTOM_MODEL_PATH.exists():
+            chosen_path = config.CUSTOM_MODEL_PATH
+        else:
+            chosen_path = config.SFACE_MODEL_PATH
+
+        self.model_path = chosen_path
         if not self.model_path.exists():
             raise FileNotFoundError(
-                f"SFace model not found at '{self.model_path}'. "
+                f"Model file not found at '{self.model_path}'. "
                 f"Please run 'python scripts/download_models.py' first."
             )
 
@@ -41,12 +51,24 @@ class SFaceRecognizer:
             backend_id = cv2.dnn.DNN_BACKEND_OPENCV
             target_id = cv2.dnn.DNN_TARGET_CPU
 
-        self.recognizer = cv2.FaceRecognizerSF.create(
-            model=str(self.model_path),
+        # SFace model is always used for canonical 112x112 landmark alignment
+        self._aligner = cv2.FaceRecognizerSF.create(
+            model=str(config.SFACE_MODEL_PATH),
             config="",
             backend_id=backend_id,
             target_id=target_id,
         )
+
+        # For feature extraction: if custom ONNX, use OpenCV DNN Net; else FaceRecognizerSF
+        self.is_custom = (self.model_path.name != config.SFACE_MODEL_PATH.name)
+        if self.is_custom:
+            self._custom_net = cv2.dnn.readNetFromONNX(str(self.model_path))
+            self._custom_net.setPreferableBackend(backend_id)
+            self._custom_net.setPreferableTarget(target_id)
+            self.recognizer = None
+        else:
+            self._custom_net = None
+            self.recognizer = self._aligner
 
     def align_crop(
         self,
@@ -66,7 +88,7 @@ class SFaceRecognizer:
         if raw_face is None or len(raw_face) < 15:
             raise ValueError("Invalid face detection data supplied for alignment.")
 
-        aligned_face = self.recognizer.alignCrop(image, raw_face)
+        aligned_face = self._aligner.alignCrop(image, raw_face)
         return aligned_face
 
     def extract_feature(
@@ -75,6 +97,8 @@ class SFaceRecognizer:
         normalize: bool = True,
     ) -> np.ndarray:
         """Extract a 128-dimensional facial embedding vector.
+
+        Supports both standard SFace and custom Kaggle fine-tuned ONNX models.
 
         Args:
             aligned_face: Aligned face crop (112, 112, 3).
@@ -86,7 +110,20 @@ class SFaceRecognizer:
         if aligned_face is None or aligned_face.size == 0:
             raise ValueError("Cannot extract features from an empty face crop.")
 
-        feature = self.recognizer.feature(aligned_face)  # Shape (1, 128)
+        if self.is_custom and self._custom_net is not None:
+            # Preprocess for custom PyTorch MobileFaceNet ONNX model (1x3x112x112)
+            blob = cv2.dnn.blobFromImage(
+                aligned_face,
+                scalefactor=1.0 / 127.5,
+                size=(112, 112),
+                mean=(127.5, 127.5, 127.5),
+                swapRB=True,
+            )
+            self._custom_net.setInput(blob)
+            feature = self._custom_net.forward()
+        else:
+            feature = self.recognizer.feature(aligned_face)
+
         feature = feature.flatten().astype(np.float32)
 
         if normalize:

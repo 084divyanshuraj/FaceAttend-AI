@@ -1,0 +1,71 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Large Model weights (keep the repo clean if needed, ONNX models under models/ are tracked)
+*.pth
+*.pt
+*.tmp
+*.bin
+
+# Local Database runtime WAL & SHM files (preserve faceattend.db)
+database/*.db-wal
+database/*.db-shm
+test_*.db
+test_*.db-wal
+test_*.db-shm
+
+# Coverage & testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Local documents / Word files
+*.docx
+
+
