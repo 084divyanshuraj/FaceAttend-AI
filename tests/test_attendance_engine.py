@@ -135,7 +135,7 @@ def test_unknown_person_detection():
     face = res.faces[0]
     assert face.status == "UNKNOWN"
     assert face.label == "Unknown"
-    assert face.badge_color == "#EF4444"
+    assert face.badge_color == AttendanceEngine.COLOR_UNKNOWN
     assert face.student_id is None
 
 

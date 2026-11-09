@@ -95,21 +95,28 @@ class LiveAttendanceManager {
 
         faces.forEach(face => {
             const [x, y, w, h] = face.bbox;
-            const color = face.badge_color || '#EF4444';
+            const color = face.badge_color || '#FF1493';
 
-            // 1. Draw Bounding Box
-            this.ctx.lineWidth = 3;
+            // 1. Draw Cyber Bounding Box with subtle glow
+            this.ctx.save();
+            this.ctx.shadowColor = color;
+            this.ctx.shadowBlur = 10;
+            this.ctx.lineWidth = 2.5;
             this.ctx.strokeStyle = color;
             this.ctx.strokeRect(x, y, w, h);
+            this.ctx.restore();
 
-            // 2. Draw 5 Facial Landmarks (small dots)
+            // 2. Draw 5 Facial Landmarks (Cerulean / Cyan glow dots)
             if (face.landmarks && face.landmarks.length === 5) {
-                this.ctx.fillStyle = '#38BDF8';
+                this.ctx.fillStyle = '#00D2FF';
+                this.ctx.shadowColor = '#0090E7';
+                this.ctx.shadowBlur = 6;
                 face.landmarks.forEach(([lx, ly]) => {
                     this.ctx.beginPath();
-                    this.ctx.arc(lx, ly, 3, 0, 2 * Math.PI);
+                    this.ctx.arc(lx, ly, 3.5, 0, 2 * Math.PI);
                     this.ctx.fill();
                 });
+                this.ctx.shadowBlur = 0;
             }
 
             // 3. Draw Top Badge with Label
@@ -119,19 +126,23 @@ class LiveAttendanceManager {
 
             this.ctx.font = '600 13px Inter, sans-serif';
             const textMetrics = this.ctx.measureText(text);
-            const badgeW = textMetrics.width + 16;
-            const badgeH = 24;
+            const badgeW = textMetrics.width + 18;
+            const badgeH = 26;
             const badgeY = Math.max(0, y - badgeH - 6);
 
-            // Badge Background
+            // Badge Background with Glow
+            this.ctx.save();
+            this.ctx.shadowColor = color;
+            this.ctx.shadowBlur = 8;
             this.ctx.fillStyle = color;
             this.ctx.beginPath();
             this.ctx.roundRect(x, badgeY, badgeW, badgeH, 6);
             this.ctx.fill();
+            this.ctx.restore();
 
-            // Text
-            this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.fillText(text, x + 8, badgeY + 16);
+            // Text Label
+            this.ctx.fillStyle = color === '#00E5A3' ? '#07080B' : '#FFFFFF';
+            this.ctx.fillText(text, x + 9, badgeY + 17);
         });
     }
 

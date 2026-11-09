@@ -19,8 +19,9 @@ class DashboardCharts {
 
             const ctx = canvas.getContext('2d');
             const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, 'rgba(99, 102, 241, 0.4)');
-            gradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
+            gradient.addColorStop(0, 'rgba(0, 144, 231, 0.45)');
+            gradient.addColorStop(0.6, 'rgba(255, 20, 147, 0.12)');
+            gradient.addColorStop(1, 'rgba(255, 20, 147, 0.0)');
 
             new Chart(ctx, {
                 type: 'line',
@@ -29,16 +30,17 @@ class DashboardCharts {
                     datasets: [{
                         label: 'Present Students',
                         data: values.length > 0 ? values : [0],
-                        borderColor: '#6366F1',
+                        borderColor: '#0090E7',
                         backgroundColor: gradient,
                         borderWidth: 2.5,
                         fill: true,
                         tension: 0.35,
-                        pointBackgroundColor: '#6366F1',
+                        pointBackgroundColor: '#FF1493',
                         pointBorderColor: '#FFFFFF',
                         pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
+                        pointRadius: 4.5,
+                        pointHoverRadius: 7,
+                        pointHoverBackgroundColor: '#00D2FF',
                     }]
                 },
                 options: {
@@ -47,22 +49,23 @@ class DashboardCharts {
                     plugins: {
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: '#1E293B',
-                            titleColor: '#F8FAFC',
-                            bodyColor: '#94A3B8',
-                            borderColor: '#334155',
-                            borderWidth: 1,
-                            padding: 10,
+                            backgroundColor: '#11141D',
+                            titleColor: '#00D2FF',
+                            bodyColor: '#F8FAFC',
+                            borderColor: '#1E2330',
+                            borderWidth: 1.5,
+                            padding: 12,
+                            displayColors: false,
                         }
                     },
                     scales: {
                         x: {
-                            grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.03)' },
                             ticks: { color: '#94A3B8', font: { size: 11 } }
                         },
                         y: {
                             beginAtZero: true,
-                            grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.03)' },
                             ticks: { color: '#94A3B8', stepSize: 1, font: { size: 11 } }
                         }
                     }
@@ -94,15 +97,15 @@ class DashboardCharts {
                     datasets: [{
                         data: values.length > 0 ? values : [1],
                         backgroundColor: [
-                            '#6366F1',
-                            '#10B981',
-                            '#06B6D4',
-                            '#F59E0B',
-                            '#EC4899',
-                            '#8B5CF6'
+                            '#0090E7', // Cerulean Blue
+                            '#FF1493', // Neon Rose
+                            '#00D2FF', // Electric Cyan
+                            '#FF4DA6', // Bright Rose
+                            '#00B4D8', // Light Cerulean
+                            '#FF85C0'  // Soft Rose
                         ],
                         borderWidth: 2,
-                        borderColor: '#1E293B',
+                        borderColor: '#11141D',
                         hoverOffset: 6
                     }]
                 },

@@ -53,10 +53,10 @@ class ProcessedFrameResult:
 class AttendanceEngine:
     """Real-time multi-face attendance engine with temporal consensus and cooldown."""
 
-    # UI Theme Palette
-    COLOR_MARKED = "#10B981"      # Emerald green (attendance confirmed / present)
-    COLOR_ACQUIRING = "#F59E0B"   # Amber (verifying consensus across frames)
-    COLOR_UNKNOWN = "#EF4444"     # Crimson red (unmatched face)
+    # UI Theme Palette (Jet Black, Cerulean Blue & Neon Rose Cyber System)
+    COLOR_MARKED = "#00E5A3"      # Cyber neon mint / present verified
+    COLOR_ACQUIRING = "#FFB703"   # Cyber amber / verifying consensus across frames
+    COLOR_UNKNOWN = "#FF1493"     # Electrifying Neon Rose / unmatched unknown face
 
     def __init__(
         self,
